@@ -78,6 +78,8 @@ local openTerminal = function()
     vim.cmd.term()
     vim.cmd.wincmd("J")
     vim.api.nvim_win_set_height(0, 7)
+
+
 end
 
 
@@ -113,6 +115,7 @@ local function executeCommand(enter_terminal)
     if enter_terminal then
         win_id = getBufferWindowId(bufnr)
         vim.api.nvim_set_current_win(win_id)
+        -- SOMETHING GOES WRONG HERE??? ^
         vim.cmd("startinsert")
     end
 end

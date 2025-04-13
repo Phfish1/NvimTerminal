@@ -14,11 +14,12 @@
 
 local execute_paterns = {
     python = {
-        "python $FILENAME"
+        "cd '$FILEDIR' && ",
+        "python $FILEPATH"
     },
     lua = {
-        "echo 'are you editing nvim?' && ",
-        "echo 'yes you are'"
+        "cd $FILEDIR && ",
+        "echo 'are you editing nvim?'",
     }
 
 }
@@ -30,7 +31,9 @@ local execute_paterns = {
 
 function getCmdStr()
     local filetype = vim.bo.filetype 
-    local filename = vim.api.nvim_buf_get_name(0)
+    local filepath = vim.api.nvim_buf_get_name(0)
+    local filedir = string.gsub(filepath, "/[^/]+$", "")
+
     local cmd_str = ""
 
     -- This executes if the filetype is not found in our 'database'
@@ -39,8 +42,16 @@ function getCmdStr()
     end
 
 
+    -- Matches $<VARIABLE> in the 'database' and replaces it with variable
     for i, v in ipairs(execute_paterns[filetype]) do
-        cmd_str = cmd_str .. v:gsub("$FILENAME", filename) 
+        cmd_str = cmd_str .. v:gsub("%$(%u+)", function(match)
+            if match == "FILEPATH" then
+                return filepath
+            elseif match == "FILEDIR" then
+                return filedir
+            end
+            return nil
+        end)
     end
 
     return cmd_str
