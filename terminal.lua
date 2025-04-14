@@ -3,6 +3,7 @@
 -----------------------------------------------------------
 
 local buf_ids = {}
+local term_height = 7
 
 
 -----------------------------------------------------------
@@ -23,8 +24,9 @@ vim.api.nvim_create_autocmd('TermOpen', {
         -- starts terminal in input mode by default
         vim.cmd("startinsert")
         
+        
         -- insert the job_id of the terminal to buf_ids
-        table.insert(buf_ids, args.buf)
+        table.insert(buf_ids, { buf = args.buf, winid = vim.fn.win_getid() } )
         
         -- Debug:
         --vim.api.nvim_buf_set_lines(5, 0, -1, false, { tostring(args.buf), "opens!" })
@@ -40,7 +42,7 @@ vim.api.nvim_create_autocmd('TermClose', {
         -- Remove the table entry that contains the closed terminals vim.bo.channel job_id
         bufnr = args.buf
         for k, v in pairs(buf_ids) do
-            if v == bufnr then
+            if v["buf"] == bufnr then
                 table.remove(buf_ids, k)
             end
         end
@@ -54,17 +56,10 @@ vim.api.nvim_create_autocmd('TermClose', {
 -- => Extra functions
 -----------------------------------------------------------
 
+local function enterTerminal(win_id)
+    vim.api.nvim_set_current_win(win_id)
 
-local function getBufferWindowId(bufnr)
-    local windows = vim.api.nvim_list_wins()
-    
-    for _,win_id in ipairs(windows) do
-        local win_buf = vim.api.nvim_win_get_buf(win_id)
-        if win_buf == bufnr then
-            return win_id
-        end
-    end
-    return nil
+    vim.cmd("startinsert")
 end
 
 
@@ -77,15 +72,16 @@ local openTerminal = function()
     vim.cmd.new()
     vim.cmd.term()
     vim.cmd.wincmd("J")
-    vim.api.nvim_win_set_height(0, 7)
+    vim.api.nvim_win_set_height(0, term_height)
 
-
+    return true
 end
 
 
 local function executeCommand(enter_terminal)
+    local opened_terminal = false
     if table.getn(buf_ids) == 0 then
-        openTerminal()
+        opened_terminal = openTerminal()
 
         -- Makes you NOT jump into the terminal
         vim.cmd("wincmd p")
@@ -96,7 +92,7 @@ local function executeCommand(enter_terminal)
     end
 
     -- Get the job_id 
-    bufnr = buf_ids[table.getn(buf_ids)]
+    bufnr = buf_ids[table.getn(buf_ids)]["buf"]
     job_id = vim.api.nvim_buf_get_var(bufnr, "terminal_job_id")
 
     -------------------
@@ -105,18 +101,18 @@ local function executeCommand(enter_terminal)
 
     -- Construct and send terminal input data
     cmd_str = getCmdStr()
-    vim.fn.chansend( job_id, { cmd_str, "" })
 
-    -- Ensure autoscroll functionality
+    -- First "", to exit last chansend, trailing "" to set newline
+    vim.fn.chansend( job_id, { "", cmd_str, "" })
+
+    -- Ensure autoscroll functonality
     vim.api.nvim_buf_call(bufnr, function()
         vim.cmd("norm G")
     end)
 
     if enter_terminal then
-        win_id = getBufferWindowId(bufnr)
-        vim.api.nvim_set_current_win(win_id)
-        -- SOMETHING GOES WRONG HERE??? ^
-        vim.cmd("startinsert")
+        local winid = buf_ids[table.getn(buf_ids)]["winid"]
+        enterTerminal(winid)
     end
 end
 
@@ -127,11 +123,33 @@ local function closeTerminal()
         return
     end
 
-    bufnr = buf_ids[table.getn(buf_ids)]
+    -- Gets the terminal buffer and from it the job_id
+    bufnr = buf_ids[table.getn(buf_ids)]["buf"]
     job_id = vim.api.nvim_buf_get_var(bufnr, "terminal_job_id")
 
+    -- Closes job and buffer
     vim.fn.jobstop(job_id)
     vim.api.nvim_buf_delete(bufnr, { force = true })
+end
+
+
+local function resizeTerminal(new_height, direction)
+    if table.getn(buf_ids) == 0 then
+        print("No open terminals")
+        return
+    end
+
+    local winid = buf_ids[table.getn(buf_ids)]["winid"]
+
+    if direction == "DEFAULT" then
+        new_height = term_height
+    elseif direction == "UP" then
+        new_height = vim.api.nvim_win_get_height(winid) + new_height
+    elseif direction == "DOWN" then
+        new_height = vim.api.nvim_win_get_height(winid) - new_height
+    end
+
+    vim.api.nvim_win_set_height(winid, new_height)
 end
 
 
@@ -159,3 +177,22 @@ vim.keymap.set("n", "<leader>N", function()
     closeTerminal()
 end)
 
+
+-----------------------------------------------------------
+-- => Height mappings
+-----------------------------------------------------------
+
+-- Resizes terminal to default height
+vim.keymap.set("n", "<leader>r", function()
+    resizeTerminal(0, "DEFAULT")
+end)
+
+-- Resizez terminal down
+vim.keymap.set("n", "<leader>j", function()
+    resizeTerminal(1, "DOWN")
+end)
+
+-- Resizez terminal up
+vim.keymap.set("n", "<leader>k", function()
+    resizeTerminal(1, "UP")
+end)
