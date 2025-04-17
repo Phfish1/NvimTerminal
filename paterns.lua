@@ -20,6 +20,11 @@ local execute_paterns = {
     lua = {
         "cd $FILEDIR && ",
         "echo 'are you editing nvim?'",
+    },
+    c = {
+        "cd $FILEDIR && ",
+        "gcc $FILEPATH -o $FILENICK && ",
+        "./$FILENICK"
     }
 
 }
@@ -33,6 +38,11 @@ function getCmdStr()
     local filetype = vim.bo.filetype 
     local filepath = vim.api.nvim_buf_get_name(0)
     local filedir = string.gsub(filepath, "/[^/]+$", "")
+
+    local filename = string.gsub(filepath, ".*/", "")
+    local filenick = string.gsub(filename, "%..", "")
+
+    print(filename)
 
     local cmd_str = ""
 
@@ -49,6 +59,10 @@ function getCmdStr()
                 return filepath
             elseif match == "FILEDIR" then
                 return filedir
+            elseif match == "FILENAME" then
+                return filename
+            elseif match == "FILENICK" then
+                return filenick
             end
             return nil
         end)

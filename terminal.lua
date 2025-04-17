@@ -102,7 +102,11 @@ local function executeCommand(enter_terminal)
     -- Construct and send terminal input data
     cmd_str = getCmdStr()
 
-    -- First "", to exit last chansend, trailing "" to set newline
+    
+    -- !!! THIS NEEDS UPDATING !!!
+    --      Does not terminate the previous process!
+
+    -- First "", to send space to last chansend, trailing "" to set newline
     vim.fn.chansend( job_id, { "", cmd_str, "" })
 
     -- Ensure autoscroll functonality
@@ -182,17 +186,21 @@ end)
 -- => Height mappings
 -----------------------------------------------------------
 
+--- !!!!!!!
+---  Look into Hydra.nvim for MUCH better keymaps!
+--- !!!!!!!
+
 -- Resizes terminal to default height
-vim.keymap.set("n", "<leader>r", function()
+vim.keymap.set("n", "<leader>tr", function()
     resizeTerminal(0, "DEFAULT")
 end)
 
 -- Resizez terminal down
-vim.keymap.set("n", "<leader>j", function()
+vim.keymap.set("n", "<leader>tj", function()
     resizeTerminal(1, "DOWN")
 end)
 
 -- Resizez terminal up
-vim.keymap.set("n", "<leader>k", function()
+vim.keymap.set("n", "<leader>tk", function()
     resizeTerminal(1, "UP")
 end)
